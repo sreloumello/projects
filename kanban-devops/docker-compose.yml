@@ -22,12 +22,6 @@ services:
     working_dir: /ansible
     volumes:
       - ./ansible:/ansible
-    environment:
-      - DB_HOST=floci-rds-kanban-db
-      - DB_PORT=5432
-      - DB_NAME=kanbandb
-      - DB_USER=dbadmin
-      - DB_PASSWORD=localpassword
     entrypoint: bash
     command:
       - -c
