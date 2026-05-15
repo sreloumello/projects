@@ -1,0 +1,8 @@
+---
+- name: configure kanban database
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  roles:
+    - db_setup

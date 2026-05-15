@@ -1,0 +1,61 @@
+---
+- name: check postgres connection
+  community.postgresql.postgresql_ping:
+    login_host: "{{ db_host }}"
+    login_port: "{{ db_port }}"
+    login_user: "{{ db_user }}"
+    login_password: "{{ db_password }}"
+    db: "{{ db_name }}"
+  register: ping_result
+
+- name: fail if database is not reachable
+  ansible.builtin.fail:
+    msg: "database is not reachable at {{ db_host }}:{{ db_port }}"
+  when: not ping_result.is_alive
+
+- name: run init.sql
+  community.postgresql.postgresql_script:
+    login_host: "{{ db_host }}"
+    login_port: "{{ db_port }}"
+    login_user: "{{ db_user }}"
+    login_password: "{{ db_password }}"
+    db: "{{ db_name }}"
+    path: "{{ role_path }}/files/init.sql"
+
+- name: verify tables were created
+  community.postgresql.postgresql_query:
+    login_host: "{{ db_host }}"
+    login_port: "{{ db_port }}"
+    login_user: "{{ db_user }}"
+    login_password: "{{ db_password }}"
+    db: "{{ db_name }}"
+    query: >
+      SELECT COUNT(*) as count
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+      AND table_name IN ('users', 'columns', 'tasks')
+  register: tables_result
+
+- name: fail if tables are missing
+  ansible.builtin.fail:
+    msg: "expected 3 tables, found {{ tables_result.query_result[0].count }}"
+  when: tables_result.query_result[0].count | int != 3
+
+- name: verify seed columns exist
+  community.postgresql.postgresql_query:
+    login_host: "{{ db_host }}"
+    login_port: "{{ db_port }}"
+    login_user: "{{ db_user }}"
+    login_password: "{{ db_password }}"
+    db: "{{ db_name }}"
+    query: "SELECT COUNT(*) as count FROM columns"
+  register: columns_result
+
+- name: fail if seed data is missing
+  ansible.builtin.fail:
+    msg: "expected 4 seed columns, found {{ columns_result.query_result[0].count }}"
+  when: columns_result.query_result[0].count | int != 4
+
+- name: database setup complete
+  ansible.builtin.debug:
+    msg: "database ready — {{ tables_result.query_result[0].count }} tables, {{ columns_result.query_result[0].count }} seed columns"

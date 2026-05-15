@@ -1,0 +1,42 @@
+services:
+  floci:
+    image: floci/floci:latest
+    container_name: kanban-floci
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - FLOCI_STORAGE_MODE=persistent
+      - FLOCI_HOSTNAME=floci
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_floci/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ansible:
+    image: python:3.12-slim
+    container_name: kanban-ansible
+    working_dir: /ansible
+    volumes:
+      - ./ansible:/ansible
+    environment:
+      - DB_HOST=floci-rds-kanban-db
+      - DB_PORT=5432
+      - DB_NAME=kanbandb
+      - DB_USER=dbadmin
+      - DB_PASSWORD=localpassword
+    entrypoint: bash
+    command:
+      - -c
+      - |
+        pip install ansible psycopg2-binary --quiet &&
+        ansible-galaxy collection install community.postgresql -p /ansible/collections &&
+        ansible-playbook -i inventory/local.yml playbook.yml -v
+    depends_on:
+      floci:
+        condition: service_healthy
+    profiles:
+      - db-setup

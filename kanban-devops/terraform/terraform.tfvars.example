@@ -1,0 +1,3 @@
+db_username = "your_user"
+db_password = "your_password"
+db_name = "your_dbname"
