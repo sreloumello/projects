@@ -2,8 +2,13 @@
 # Makefile — kanban devops
 # =============================================================================
 
-TERRAFORM_DIR = terraform
-FLOCI_SCRIPT  = floci.sh
+TERRAFORM_DIR   = terraform
+FLOCI_SCRIPT    = floci.sh
+FLOCI_CONTAINER = kanban-floci
+FLOCI_ENDPOINT  = http://$\(FLOCI_CONTAINER\):4566
+
+# suppress docker compose warnings about unset variables
+COMPOSE = docker compose --env-file /dev/null
 
 # colors
 GREEN  = \033[0;32m
@@ -20,9 +25,9 @@ setup: infra db api
 ## infra: start floci and provision infrastructure with terraform
 infra:
 	@echo "$(BLUE)==> starting floci...$(NC)"
-	@source $(FLOCI_SCRIPT) && docker compose up -d floci
+	@source $(FLOCI_SCRIPT) && $(COMPOSE) up -d floci
 	@echo "$(YELLOW)waiting for floci to be healthy...$(NC)"
-	@until docker compose ps floci | grep -q "healthy"; do sleep 2; done
+	@until $(COMPOSE) ps floci | grep -q "healthy"; do sleep 2; done
 	@echo "$(GREEN)floci ready$(NC)"
 
 	@echo "$(BLUE)==> provisioning infrastructure...$(NC)"
@@ -56,7 +61,7 @@ db:
 	DB_NAME=$$(cd $(TERRAFORM_DIR) && terraform output -raw db_name) && \
 	DB_USER=$$(grep db_username $(TERRAFORM_DIR)/terraform.tfvars | cut -d'"' -f2) && \
 	DB_PASSWORD=$$(grep db_password $(TERRAFORM_DIR)/terraform.tfvars | cut -d'"' -f2) && \
-	docker compose --profile db-setup run --rm \
+	$(COMPOSE) --profile db-setup run --rm \
 		-e DB_HOST=$$RDS_CONTAINER \
 		-e DB_PORT=5432 \
 		-e DB_NAME=$$DB_NAME \
@@ -78,23 +83,30 @@ api:
 	export DB_PASSWORD=$$(grep db_password $(TERRAFORM_DIR)/terraform.tfvars | cut -d'"' -f2) && \
 	export COGNITO_USER_POOL_ID=$$(cd $(TERRAFORM_DIR) && terraform output -raw cognito_user_pool_id) && \
 	export COGNITO_CLIENT_ID=$$(cd $(TERRAFORM_DIR) && terraform output -raw cognito_client_id) && \
-	docker compose up -d --build api
+	export AWS_ENDPOINT_URL=$(FLOCI_ENDPOINT) && \
+	$(COMPOSE) up -d --build api
 	@echo "$(GREEN)api ready — http://localhost:8000$(NC)"
 	@echo "$(GREEN)docs   — http://localhost:8000/docs$(NC)"
 
-## down: stop all services
+## down: stop all services (preserves terraform state and floci data)
 down:
 	@echo "$(YELLOW)stopping services...$(NC)"
-	@docker compose down
+	@$(COMPOSE) down
 	@echo "$(GREEN)done$(NC)"
 
-## destroy: stop services and destroy infrastructure
+## destroy: destroy all infrastructure and stop services
 destroy:
+	@echo "$(RED)==> starting floci to run terraform destroy...$(NC)"
+	@source $(FLOCI_SCRIPT) && $(COMPOSE) up -d floci
+	@until $(COMPOSE) ps floci | grep -q "healthy"; do sleep 2; done
+
 	@echo "$(RED)==> destroying infrastructure...$(NC)"
-	@docker compose down
 	@source $(FLOCI_SCRIPT) && \
 	cd $(TERRAFORM_DIR) && \
 	terraform destroy -auto-approve
+
+	@echo "$(RED)==> stopping all services...$(NC)"
+	@$(COMPOSE) down
 	@echo "$(GREEN)done$(NC)"
 
 ## help: show available targets
