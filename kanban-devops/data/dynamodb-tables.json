@@ -1,0 +1,40 @@
+{
+  "000000000000/us-east-1::kanban-tfstate-lock" : {
+    "tableName" : "kanban-tfstate-lock",
+    "keySchema" : [ {
+      "attributeName" : "LockID",
+      "keyType" : "HASH"
+    } ],
+    "attributeDefinitions" : [ {
+      "attributeName" : "LockID",
+      "attributeType" : "S"
+    } ],
+    "tableStatus" : "ACTIVE",
+    "creationDateTime" : "2026-05-15T17:30:56.619629339Z",
+    "itemCount" : 0,
+    "tableSizeBytes" : 0,
+    "provisionedThroughput" : {
+      "readCapacityUnits" : 5,
+      "writeCapacityUnits" : 5,
+      "lastIncreaseDateTime" : null,
+      "lastDecreaseDateTime" : null,
+      "numberOfDecreasesToday" : 0
+    },
+    "tableArn" : "arn:aws:dynamodb:us-east-1:000000000000:table/kanban-tfstate-lock",
+    "tags" : { },
+    "globalSecondaryIndexes" : [ ],
+    "localSecondaryIndexes" : [ ],
+    "billingMode" : null,
+    "ttlAttributeName" : null,
+    "ttlEnabled" : false,
+    "pointInTimeRecoveryEnabled" : false,
+    "pointInTimeRecoveryRecoveryPeriodInDays" : 35,
+    "deletionProtectionEnabled" : false,
+    "streamEnabled" : false,
+    "streamArn" : null,
+    "streamViewType" : null,
+    "kinesisStreamingDestinations" : [ ],
+    "partitionKeyName" : "LockID",
+    "sortKeyName" : null
+  }
+}

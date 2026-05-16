@@ -1,0 +1,8 @@
+{
+  "000000000000/us-east-1::/aws/rds/instance/kanban-db/error" : {
+    "logGroupName" : "/aws/rds/instance/kanban-db/error",
+    "createdTime" : 1778868062098,
+    "retentionInDays" : null,
+    "tags" : { }
+  }
+}

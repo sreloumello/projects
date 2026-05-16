@@ -21,4 +21,5 @@ terraform/terraform.tfvars
 
 #Floci creds
 floci.sh 
-data/
+data/backend/.env.dev
+tests/

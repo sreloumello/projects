@@ -1,0 +1,22 @@
+{
+  "000000000000/us-east-1::/aws/rds/instance/kanban-db/error::2026/05/15/d2d1ef7e" : {
+    "logGroupName" : "/aws/rds/instance/kanban-db/error",
+    "logStreamName" : "2026/05/15/d2d1ef7e",
+    "createdTime" : 1778868062099,
+    "firstEventTimestamp" : 1778868062112,
+    "lastEventTimestamp" : 1778868367112,
+    "lastIngestionTime" : 1778868367112,
+    "uploadSequenceToken" : "205fb867-8d99-4ee3-8feb-9f83ccc91d86",
+    "storedBytes" : 4783
+  },
+  "000000000000/us-east-1::/aws/rds/instance/kanban-db/error::2026/05/16/1908b05a" : {
+    "logGroupName" : "/aws/rds/instance/kanban-db/error",
+    "logStreamName" : "2026/05/16/1908b05a",
+    "createdTime" : 1778947559560,
+    "firstEventTimestamp" : 1778947559626,
+    "lastEventTimestamp" : 1778951463983,
+    "lastIngestionTime" : 1778951463983,
+    "uploadSequenceToken" : "1653abeb-5c95-4afb-bf02-9da00c676d45",
+    "storedBytes" : 5992
+  }
+}

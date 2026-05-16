@@ -16,6 +16,16 @@ services:
       timeout: 5s
       retries: 10
 
+  db-proxy:
+    image: alpine/socat
+    container_name: kanban-db-proxy
+    command: TCP-LISTEN:5432,fork,reuseaddr TCP:floci-rds-kanban-db:5432
+    ports:
+      - "5432:5432"
+    depends_on:
+      floci:
+        condition: service_healthy
+
   ansible:
     image: python:3.12-slim
     container_name: kanban-ansible

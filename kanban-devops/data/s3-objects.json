@@ -1,0 +1,33 @@
+{
+  "000000000000/kanban-tfstate/kanban/terraform.tfstate" : {
+    "bucketName" : "kanban-tfstate",
+    "key" : "kanban/terraform.tfstate",
+    "metadata" : { },
+    "contentType" : "application/json",
+    "contentEncoding" : null,
+    "contentDisposition" : null,
+    "cacheControl" : null,
+    "serverSideEncryption" : "AES256",
+    "size" : 10965,
+    "lastModified" : "2026-05-16T16:07:19Z",
+    "storageClass" : "STANDARD",
+    "checksum" : {
+      "checksumCRC32" : null,
+      "checksumCRC32C" : null,
+      "checksumCRC64NVME" : null,
+      "checksumSHA1" : "9O/5Vgm7yOUhLJkm68NhlcmRLzs=",
+      "checksumSHA256" : "bxPZE08VpDaFt2QOJzaQBKqLr1AtTAoyd/QtzrG5zy0=",
+      "checksumType" : "FULL_OBJECT"
+    },
+    "parts" : [ ],
+    "versionId" : null,
+    "deleteMarker" : false,
+    "tags" : { },
+    "objectLockMode" : null,
+    "retainUntilDate" : null,
+    "legalHoldStatus" : null,
+    "acl" : null,
+    "latest" : true,
+    "etag" : "\"7073cd52c4de6996a91abe5a3ab306fa\""
+  }
+}

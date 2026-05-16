@@ -3,7 +3,6 @@ all:
     localhost:
       ansible_connection: local
   vars:
-    # populated by makefile from terraform output
     db_host: "{{ lookup('env', 'DB_HOST') }}"
     db_port: "{{ lookup('env', 'DB_PORT') }}"
     db_name: "{{ lookup('env', 'DB_NAME') }}"
