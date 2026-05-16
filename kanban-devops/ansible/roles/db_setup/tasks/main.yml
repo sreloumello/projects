@@ -11,7 +11,7 @@
 - name: fail if database is not reachable
   ansible.builtin.fail:
     msg: "database is not reachable at {{ db_host }}:{{ db_port }}"
-  when: not ping_result.is_alive
+  when: not ping_result.is_available
 
 - name: run init.sql
   community.postgresql.postgresql_script:
