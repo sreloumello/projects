@@ -4,15 +4,17 @@ Personal project to study and practice DevOps concepts. A kanban board used as a
 
 The app is not the focus — it is the vehicle. The goal is to understand in practice the differences between infrastructure stacks, deployment strategies, and cloud-native services.
 
+All infrastructure runs locally using [Floci](https://github.com/floci-io/floci), a free open-source AWS emulator. This was a deliberate choice to eliminate cloud costs during development while keeping the infrastructure code identical to what would run on real AWS — the same Terraform modules, the same Cognito auth flow, the same RDS PostgreSQL. A cost estimate for running this stack on AWS is included at the end of this document for reference.
+
 ---
 
 ## The application
 
 A kanban board with authentication, public read access, and protected write access.
 
-- **Frontend:** static SPA served via S3 + CloudFront
+- **Frontend:** static SPA *(coming soon)*
 - **Backend:** Python + FastAPI
-- **Database:** PostgreSQL
+- **Database:** PostgreSQL via RDS
 - **Auth:** AWS Cognito
 
 ### Access model
@@ -48,7 +50,7 @@ A kanban board with authentication, public read access, and protected write acce
 
 Each stack provisions the same application with a different architecture, all via Terraform.
 
-### Stack 1 — Lambda + API Gateway + RDS + S3 + CloudFront
+### Stack 1 — Lambda + API Gateway + RDS + S3 + CloudFront *(coming soon)*
 
 ```
 user
@@ -70,17 +72,59 @@ CloudFront
 
 ---
 
-## Running locally — Floci
+## Local development with Floci
 
 [Floci](https://github.com/floci-io/floci) emulates AWS services locally in a single Docker container. No account, no cost, no internet required.
 
-```bash
-# start floci
-docker compose up -d
+### Prerequisites
 
-# load aws cli environment
+- Docker Desktop
+- Terraform >= 1.7
+- Ansible
+- AWS CLI v2
+- Make
+
+### Quick start
+
+```bash
+# 1. clone the repo
+git clone <repo-url>
+cd kanban-devops
+
+# 2. copy and fill in credentials
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+# edit terraform/terraform.tfvars with your db credentials
+
+# 3. load floci environment
 source floci.sh
 
+# 4. create remote state backend (first time only)
+aws s3 mb s3://kanban-tfstate
+aws dynamodb create-table \
+  --table-name kanban-tfstate-lock \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST
+
+# 5. full setup
+make setup
+```
+
+### Make targets
+
+| Target | Description |
+|---|---|
+| `make setup` | full setup — infra + db + api |
+| `make infra` | start floci + provision cognito and rds via terraform + wait for rds healthy |
+| `make db` | configure tables and seed data via ansible |
+| `make api` | build and start the api container |
+| `make down` | stop all services |
+| `make destroy` | stop services and destroy all infrastructure |
+| `make help` | list available targets |
+
+### Running step by step
+
+```bash
 # provision infrastructure
 make infra
 
@@ -88,23 +132,82 @@ make infra
 make db
 
 # start api
-cd backend
-set -a && source .env.dev && set +a
-uvicorn app.main:app --reload --port 8000
+make api
 ```
 
 API available at `http://localhost:8000`
 Docs available at `http://localhost:8000/docs`
 
-### Floci vs AWS — known differences
+---
 
-These are incompatibilities found during development. Each one requires a code or configuration change when switching between environments.
+## Docker network architecture
+
+All services run inside a single Docker network (`kanban-devops_default`). This is a deliberate choice — not a workaround.
+
+```
+your machine (host)
+│
+│  ┌─────────────────────────────────────────────────┐
+│  │  network: kanban-devops_default                 │
+│  │                                                 │
+│  │  kanban-floci          → aws emulation          │
+│  │  floci-rds-kanban-db   → postgresql             │
+│  │  kanban-api            → fastapi                │
+│  │                                                 │
+│  └─────────────────────────────────────────────────┘
+│
+├── localhost:4566  →  kanban-floci  (aws cli access)
+└── localhost:8000  →  kanban-api    (api access)
+
+floci-rds-kanban-db has no published port — only reachable inside the network
+```
+
+Inside the network, containers communicate by name. Docker has an internal DNS that resolves `floci-rds-kanban-db` to the correct IP automatically — the same pattern used in production where Lambda connects to RDS via DNS endpoint, never by IP.
+
+### Why not use a TCP proxy (socat)?
+
+An earlier approach used a `socat` container to forward port `5432` from the RDS container to the host, allowing the API to run locally and connect via `localhost:5432`.
+
+This was replaced because:
+
+- **breaks dev/prod parity** — in production the database is never directly reachable from outside the network. The proxy hides this boundary.
+- **exposes the database to the host** — any process on your machine can connect to port 5432, not just the API
+- **adds an unnecessary failure point** — one more container that can crash or misbehave
+- **masks real connectivity issues** — if something breaks in production because the DB is unreachable inside the network, the proxy would have hidden that problem during development
+
+Running the API inside the Docker network means the connectivity model is identical to production from day one.
+
+---
+
+## Credentials and secrets
+
+No credentials are stored in the repository or in `docker-compose.yml`. All sensitive values are injected at runtime by the Makefile:
+
+| Value | Source |
+|---|---|
+| `DB_NAME` | `terraform output` |
+| `DB_USER` | `terraform.tfvars` (gitignored) |
+| `DB_PASSWORD` | `terraform.tfvars` (gitignored) |
+| `DB_HOST` | `docker ps` — resolved dynamically from the running rds container name |
+| `COGNITO_USER_POOL_ID` | `terraform output` |
+| `COGNITO_CLIENT_ID` | `terraform output` |
+| `AWS_ACCESS_KEY_ID` | `floci.sh` (gitignored) |
+| `AWS_SECRET_ACCESS_KEY` | `floci.sh` (gitignored) |
+| `AWS_ENDPOINT_URL` | `floci.sh` (gitignored) |
+
+`floci.sh` uses fake credentials (`test`/`test`) accepted by Floci. It is gitignored to establish the habit of never committing credential files, even fake ones.
+
+---
+
+## Floci vs AWS — known differences
+
+These are incompatibilities found during development. Each one requires a code or configuration change when switching between local and production.
 
 | Service | Feature | Floci | AWS |
 |---|---|---|---|
 | RDS | `AddTagsToResource` | not supported | supported |
-| RDS | access from host | requires socat proxy | direct endpoint |
-| RDS | Docker socket | must be mounted in compose | not applicable |
+| RDS | host resolution | container name via docker dns | managed endpoint |
+| RDS | docker socket | must be mounted in compose | not applicable |
 | Cognito | `explicit_auth_flows` | not returned after apply | supported |
 | Cognito | `access_token_validity` | not returned after apply | supported |
 | Cognito | `refresh_token_validity` | not returned after apply | supported |
@@ -113,42 +216,17 @@ These are incompatibilities found during development. Each one requires a code o
 | Cognito | `AdminConfirmSignUp` | not supported | supported |
 | Cognito | token issuer | `http://localhost:4566/{pool_id}` | `https://cognito-idp.{region}.amazonaws.com/{pool_id}` |
 
----
+### AWS free tier reference
 
-## Running on AWS
+If deploying to AWS, the following services are covered by the free tier:
 
-```bash
-# configure aws credentials
-aws configure
-
-# provision infrastructure
-make infra ENV=aws
-
-# configure database
-make db ENV=aws
-
-# build and deploy lambda
-./build_lambda.sh
-aws lambda update-function-code \
-  --function-name kanban-api \
-  --zip-file fileb://lambda_package.zip
-
-# deploy frontend to s3
-aws s3 sync frontend/ s3://$(cd terraform && terraform output -raw s3_bucket_name)/
-aws cloudfront create-invalidation \
-  --distribution-id $(cd terraform && terraform output -raw cloudfront_distribution_id) \
-  --paths "/*"
-```
-
-### Estimated cost — AWS free tier (first year)
-
-| Service | Free tier | Cost |
+| Service | Free tier | Estimated cost |
 |---|---|---|
 | Lambda | 1M req/month | $0 |
 | API Gateway | 1M req/month | $0 |
 | S3 | 5 GB + 20K req | $0 |
 | CloudFront | 1 TB transfer | $0 |
-| RDS t3.micro | 750h/month | $0 |
+| RDS t3.micro | 750h/month (first year) | $0 |
 | Cognito | 50K MAU/month | $0 |
 | Secrets Manager | 1 secret | ~$0.40 |
 
@@ -158,17 +236,18 @@ aws cloudfront create-invalidation \
 
 ```
 .
-├── docker-compose.yml        # floci + db proxy + ansible
-├── floci.sh                  # aws cli env vars for floci
-├── Makefile                  # infra, db, destroy
+├── docker-compose.yml        # floci + api + ansible
+├── floci.sh                  # aws cli env vars — gitignored
+├── Makefile                  # infra, db, api, down, destroy
 ├── backend/
+│   ├── Dockerfile
 │   ├── requirements.txt
 │   └── app/
 │       ├── main.py           # fastapi app + lambda handler
 │       ├── config.py         # settings via env vars
 │       ├── database.py       # postgresql connection
 │       ├── middleware/
-│       │   └── auth.py       # jwt validation
+│       │   └── auth.py       # jwt validation via cognito jwks
 │       ├── schemas/
 │       │   └── models.py     # pydantic models
 │       └── routers/
@@ -178,18 +257,23 @@ aws cloudfront create-invalidation \
 │           └── columns.py    # column crud
 ├── frontend/                 # static SPA (coming soon)
 ├── ansible/
+│   ├── ansible.cfg
 │   ├── playbook.yml
 │   ├── inventory/
+│   │   └── local.yml
 │   └── roles/
-│       └── db_setup/         # creates tables and seed data
+│       └── db_setup/
+│           ├── tasks/main.yml
+│           └── files/init.sql
 └── terraform/
-    ├── main.tf
+    ├── provider.tf           # aws provider + s3 backend + floci endpoints
+    ├── main.tf               # module orchestration
     ├── variables.tf
     ├── outputs.tf
-    ├── provider.tf
+    ├── terraform.tfvars.example
     └── modules/
-        ├── cognito/
-        ├── rds/
+        ├── cognito/          # user pool + app client
+        ├── rds/              # postgresql instance
         ├── lambda/           # coming soon
         └── s3/               # coming soon
 ```
@@ -200,7 +284,6 @@ aws cloudfront create-invalidation \
 
 | Layer | Technology |
 |---|---|
-| Cloud | AWS (Lambda, API Gateway, RDS, Cognito, S3, CloudFront) |
 | Local emulation | Floci |
 | IaC | Terraform |
 | Configuration | Ansible |
@@ -208,4 +291,5 @@ aws cloudfront create-invalidation \
 | Backend | Python, FastAPI, Mangum, psycopg2 |
 | Auth | AWS Cognito, JWT (RS256) |
 | Database | PostgreSQL 16 |
+| Containers | Docker, Docker Compose |
 | CI/CD | GitHub Actions *(coming soon)* |
