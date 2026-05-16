@@ -1,25 +1,28 @@
-# Python
+# python
 __pycache__/
 *.pyc
 .venv/
 lambda_package.zip
 lambda_build/
 
-# Terraform
+# terraform
 terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.backup
 terraform/.terraform.lock.hcl
 terraform/terraform.tfvars
+terraform/tfplan
 
-# Env
-.env
+# env files
 *.env
+.env.*
 
-# macOS
+# aws local emulator
+floci.sh
+data/
+
+# macos
 .DS_Store
 
-#Floci creds
-floci.sh 
-data/backend/.env.dev
+# tests 
 tests/
