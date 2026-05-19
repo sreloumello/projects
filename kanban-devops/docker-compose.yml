@@ -37,11 +37,22 @@ services:
       - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - ALLOWED_ORIGIN=http://localhost:5173
+      - ALLOWED_ORIGIN=http://localhost:3000
     depends_on:
       floci:
         condition: service_healthy
     restart: on-failure
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=http://localhost:8000
+    container_name: kanban-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
 
   ansible:
     image: python:3.12-slim

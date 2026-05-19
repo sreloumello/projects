@@ -1,15 +1,31 @@
-// src/pages/BoardPage.jsx — placeholder
+// src/pages/BoardPage.jsx
 
 import { useAuth } from '../context/AuthContext'
+import Board from '../components/Board'
+import './BoardPage.css'
 
 export default function BoardPage() {
   const { user, logout } = useAuth()
+
   return (
-    <div style={{ padding: '2rem', color: 'var(--text)' }}>
-      <p>welcome, {user.name}!</p>
-      <button onClick={logout} style={{ marginTop: '1rem', color: 'var(--accent)', background: 'none', border: 'none' }}>
-        logout
-      </button>
+    <div className="board-page">
+      <header className="header">
+        <h1 className="header-logo">Luan's Kanban</h1>
+        <div className="header-right">
+          {user && (
+            <>
+              <span className="header-user">{user.name}</span>
+              <button className="header-logout" onClick={logout}>
+                logout
+              </button>
+            </>
+          )}
+        </div>
+      </header>
+
+      <main>
+        <Board />
+      </main>
     </div>
   )
 }

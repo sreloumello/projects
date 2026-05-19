@@ -4,8 +4,7 @@
 
 TERRAFORM_DIR   = terraform
 FLOCI_SCRIPT    = floci.sh
-FLOCI_CONTAINER = kanban-floci
-FLOCI_ENDPOINT  = http://$\(FLOCI_CONTAINER\):4566
+FLOCI_ENDPOINT  = http://kanban-floci:4566
 
 # suppress docker compose warnings about unset variables
 COMPOSE = docker compose --env-file /dev/null
@@ -17,10 +16,10 @@ RED    = \033[0;31m
 BLUE   = \033[0;34m
 NC     = \033[0m
 
-.PHONY: setup infra db api down destroy help
+.PHONY: setup infra db api down destroy frontend help
 
 ## setup: full setup — infra + db + api
-setup: infra db api
+setup: infra db api frontend
 
 ## infra: start floci and provision infrastructure with terraform
 infra:
@@ -116,3 +115,9 @@ help:
 	@echo ""
 	@grep -E '^## ' Makefile | sed 's/## /  /'
 	@echo ""
+
+## frontend: build and start the frontend container
+frontend:
+	@echo "$(BLUE)==> starting frontend...$(NC)"
+	@$(COMPOSE) up -d --build frontend
+	@echo "$(GREEN)frontend ready — http://localhost:3000$(NC)"
